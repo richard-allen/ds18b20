@@ -353,14 +353,14 @@ int main(int argc, char **argv) {
 			fgets(buf, sizeof(buf)-1, probefd[c]);
 			temp = strtok(buf, "t=");		// C stringparsing rules! :)
 			temp = strtok(NULL, "t=");		// See?  Easy as pie.
-			now = time(NULL);
 			temperature = atof(temp)/1000;		// change "21750" into "21.750"
 			if (dolog && !once) {
+				now = time(NULL);
 				fprintf(logfd[c], "%u %2.3f\n", (unsigned int) now, temperature);
 				fflush(logfd[c]);			// Probably unnecessary to flush.
 			}
 			if (once) {
-				fprintf(stdout, "%s: %u %2.3f\n", probename[c], (unsigned int) now, temperature);
+				fprintf(stdout, "%s:\t%2.3f\n", probename[c], temperature);
 			}
 			fclose(probefd[c]);
 		}
