@@ -10,6 +10,7 @@ Arguments:
 * -r = Maintain RRD files.
 * -o = Run once. Print temperatures to screen and exit.
 * -f = Foreground.  Do not daemonize and run in the foreground.
+* -p = Probename. Only report for the named probe or alias. Implies -o and -f
 
 Additionally these arguments can also be set in a config file (/etc/ds18b20.cfg).
 

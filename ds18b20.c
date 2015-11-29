@@ -9,6 +9,7 @@
  * -r = Maintain RRD files
  * -o = Run once. Print temperatures to screen and exit
  * -f = Foreground.  Do not daemonize and run in the foreground.
+ * -p = Probename. Only report for the named probe or alias. Implies -o and -f
  *
  *  Additionally these arguments can also be set in the config file.
  *
@@ -209,21 +210,22 @@ int update_rrd(int probe, float temp) {
 }
 
 int main(int argc, char **argv) {
-	int c, once;
+	int c, once, nagios;
 	double temperature;
 	char *myname, *bmyname, *temp;
 	pid_t mypid, sid;
 	time_t now;
 	struct stat fileStat;
 	FILE *pidfile;
-	char buf[BUFSIZE];
+	char buf[BUFSIZE], theprobe[BUFSIZE];
 
-	foreground = verbose = numprobes = dolog = dorrd = once = 0;
+	foreground = verbose = numprobes = dolog = dorrd = once = nagios = 0;
 	interval = 300;		// Default interval is 300 seconds (5 minutes)
+	memset(theprobe, 0, sizeof(theprobe));
 
 	ParseCfg(CFGFILE);	// Parse CFG now, allowing cmdline to override
 
-	while ((c = getopt (argc, argv, "fvlroi:")) != -1) {
+	while ((c = getopt (argc, argv, "fvlroi:p:")) != -1) {
 		switch (c) {
 			case 'f':
 				foreground = 1;
@@ -239,6 +241,10 @@ int main(int argc, char **argv) {
 				break;
 			case 'o':
 				once = 1;
+				break;
+			case 'p':
+				strncpy (theprobe, optarg, BUFSIZE-1);
+				once = nagios = 1;
 				break;
 			case 'i':
 				interval = atoi(optarg);
@@ -270,6 +276,8 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
+	if (verbose) fprintf(stderr, "Probe on commandline is '%s'\n", theprobe);
+
 // Lets see if our logdir exists and is a directory
 	if (!foreground) {
 		if (stat(LOGROOT, &fileStat) < 0) {
@@ -290,7 +298,8 @@ int main(int argc, char **argv) {
 	}
 // All looks good. Time to prep the main loop.
 	if (foreground) {
-		fprintf(stderr, "Running in the foreground, not daemonizing.\n");
+		if (!nagios)
+			fprintf(stderr, "Running in the foreground, not daemonizing.\n");
 	} else {
 		mypid = fork();
 		if (mypid < 0)
@@ -343,6 +352,13 @@ int main(int argc, char **argv) {
 				}
 				exit(EXIT_FAILURE);
 			}
+
+// First lets see if we are looking for a single probe only
+			if (nagios) {
+				if (strncasecmp(probename[c], theprobe, PROBENAMELEN-1))
+					continue;
+			}
+
 /*
  * Example output from a probe. It's two lines and we want the t= part:
  * 5c 01 4b 46 7f ff 04 10 a1 : crc=a1 YES
