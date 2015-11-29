@@ -11,6 +11,8 @@ Arguments:
 * -o = Run once. Print temperatures to screen and exit.
 * -f = Foreground.  Do not daemonize and run in the foreground.
 * -p = Probename. Only report for the named probe or alias. Implies -o and -f
+* -m = Minimum temperature for nagios checking (only used with -p)
+* -M = Maximum temperature for nagios checking (only used with -p)
 
 Additionally these arguments can also be set in a config file (/etc/ds18b20.cfg).
 
@@ -36,11 +38,14 @@ Then I have a cron job that transfers the logs from the RAM disk to a safe
 place every night as the RAM disk is volatile and all data there will be
 lost on reboot or powerfailure.
 
+The program can also work as a Nagios check using the -p and -m and/or -M
+switches.    If the probe named with -p is either below -m or above -M
+then the program will exit with a critical message for Nagios.
+The program also prints out performance data for Nagios to graph.
+
 Written by Richard Allen <ra@ra.is> and released under the GPLv2 license.
 
 TODO:
 * Finish RRD support.
 * Consider mysql/mariadb support.
-* Add a Nagios plugin mode.
-* Set up min/max threshholds for temperature notifications.
 

@@ -10,6 +10,8 @@
  * -o = Run once. Print temperatures to screen and exit
  * -f = Foreground.  Do not daemonize and run in the foreground.
  * -p = Probename. Only report for the named probe or alias. Implies -o and -f
+ * -m = Minimum temperature for nagios checking (only used with -p)
+ * -M = Maximum temperature for nagios checking (only used with -p)
  *
  *  Additionally these arguments can also be set in the config file.
  *
@@ -210,8 +212,8 @@ int update_rrd(int probe, float temp) {
 }
 
 int main(int argc, char **argv) {
-	int c, once, nagios;
-	double temperature;
+	int c, once, nagios, nagiosexit;
+	double temperature, mintemp, maxtemp;
 	char *myname, *bmyname, *temp;
 	pid_t mypid, sid;
 	time_t now;
@@ -219,13 +221,14 @@ int main(int argc, char **argv) {
 	FILE *pidfile;
 	char buf[BUFSIZE], theprobe[BUFSIZE];
 
-	foreground = verbose = numprobes = dolog = dorrd = once = nagios = 0;
+	foreground = verbose = numprobes = dolog = dorrd = once = nagios = nagiosexit = 0;
+	mintemp = maxtemp = 0.0;
 	interval = 300;		// Default interval is 300 seconds (5 minutes)
 	memset(theprobe, 0, sizeof(theprobe));
 
 	ParseCfg(CFGFILE);	// Parse CFG now, allowing cmdline to override
 
-	while ((c = getopt (argc, argv, "fvlroi:p:")) != -1) {
+	while ((c = getopt (argc, argv, "fvlroi:p:m:M:")) != -1) {
 		switch (c) {
 			case 'f':
 				foreground = 1;
@@ -245,6 +248,12 @@ int main(int argc, char **argv) {
 			case 'p':
 				strncpy (theprobe, optarg, BUFSIZE-1);
 				once = nagios = 1;
+				break;
+			case 'm':
+				mintemp = atof(optarg);
+				break;
+			case 'M':
+				maxtemp = atof(optarg);
 				break;
 			case 'i':
 				interval = atoi(optarg);
@@ -266,6 +275,10 @@ int main(int argc, char **argv) {
 	}
 
 	if (once) foreground = 1;
+
+	if ((mintemp || maxtemp) && !nagios) {
+		fprintf(stderr, "Warning: Minimum and Maximum temperature switches are ignored without -p\n");
+	}
 
 // Locate the probes.
 	numprobes = findprobes();
@@ -376,10 +389,27 @@ int main(int argc, char **argv) {
 				fflush(logfd[c]);			// Probably unnecessary to flush.
 			}
 			if (once) {
-				fprintf(stdout, "%s:\t%2.3f\n", probename[c], temperature);
+				if (nagios) {
+					if (mintemp && temperature < mintemp) {
+						fprintf(stdout, "CRITICAL: Temperature of probe '%s' is %2.3f which is below %2.3f | 'temperature'=%2.3f\n",
+							probename[c], temperature, mintemp, temperature);
+						nagiosexit = 2;
+					} else if (maxtemp && temperature > maxtemp) {
+						fprintf(stdout, "CRITICAL: Temperature of probe '%s' is %2.3f which is over %2.3f | 'temperature'=%2.3f\n",
+							probename[c], temperature, maxtemp, temperature);
+						nagiosexit = 2;
+					} else {
+						fprintf(stdout, "OK: Temperature of probe '%s' is %2.3f | 'temperature'=%2.3f\n",
+							probename[c], temperature, temperature);
+						nagiosexit = 0;
+					}
+				} else {
+					fprintf(stdout, "%s:\t%2.3f\n", probename[c], temperature);
+				}
 			}
 			fclose(probefd[c]);
 		}
+		if (nagios) exit(nagiosexit);
 		if (once) exit(EXIT_SUCCESS);
 		sleep(interval);
 	}
