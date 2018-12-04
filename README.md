@@ -2,6 +2,9 @@
 Small program that locates all DS18B20 probes in the system
 and opens a logfile for each probe and writes the temperature
 from each probe to it's logfile.
+Also capable of running as a nagios check.
+
+To build it, just run make in the directory containing the files.
 
 Arguments:
 * -v = Verbose.  Print additional info on what the program is doing.
@@ -15,6 +18,7 @@ Arguments:
 * -M = Maximum temperature for nagios checking (only used with -p)
 
 Additionally these arguments can also be set in a config file (/etc/ds18b20.cfg).
+See example ds18b20.cfg file to see how it's configured.
 
 RRD support is still pending.
 
